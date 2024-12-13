@@ -1,0 +1,4 @@
+google-genai
+pyaudio
+numpy
+matplotlib
