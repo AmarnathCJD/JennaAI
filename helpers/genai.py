@@ -1,6 +1,7 @@
 from google import genai
 from google.genai.types import ContentDict, PartDict
 from .config import GEMINI_KEY
+from .micro import Microphone
 import asyncio
 import logging
 
@@ -30,26 +31,36 @@ class Model:
             async with client.aio.live.connect(
                 model=self.model, config=config
             ) as session:
-                while True:
-                    request = await self.queue.get()
-                    if request is None:
-                        break
-                    if "audio" in request:
-                        await session.send(
-                            {"data": request["audio"], "mime_type": "audio/pcm"},
-                            end_of_turn=True,
-                        )
-                    else:
-                        await session.send(request["text"], end_of_turn=True)
+                task1 = asyncio.create_task(self.handle_queue(session))
+                task2 = asyncio.create_task(self.receive_messages(session))
 
-                    resp = ""
-                    print("receiving...")
-                    async for message in session.receive():
-                        print(message)
-                        resp += message.text if message.text else ""
-                    await self.resp.put(resp)
+                await asyncio.gather(task1, task2)
         except Exception as e:
             self.log.error(e)
+
+    async def handle_queue(self, session):
+        while True:
+            request = await self.queue.get()
+            if request is None:
+                break
+            if "audio" in request:
+                await session.send(
+                    {"data": request["audio"], "mime_type": "audio/pcm"},
+                    end_of_turn=request.get("end_of_turn", False),
+                )
+            else:
+                await session.send(request["text"], end_of_turn=True)
+
+    async def receive_messages(self, session):
+        curr_text = ""
+
+        async for message in session.receive():
+            text = message.text if message.text else ""
+            if not message.server_content.turn_complete:
+                curr_text += text
+            else:
+                await self.resp.put(curr_text)
+                curr_text = ""
 
     async def establish_connection(self):
         self.task = asyncio.create_task(self.start())
@@ -64,4 +75,19 @@ class Model:
         response = await self.resp.get()
         return response
 
+    async def record_audio(self, duration_secs):
+        self.mic = Microphone()
+        self.log.info(f"recording for {duration_secs} seconds...")
+        last_iter = int(self.mic.rate / self.mic.chunk_size * duration_secs) - 1
 
+        for _ in range(0, int(self.mic.rate / self.mic.chunk_size * duration_secs)):
+            if _ == last_iter:
+                await self.queue.put({"audio": self.mic.read(), "end_of_turn": True})
+            else:
+                await self.queue.put({"audio": self.mic.read()})
+
+        self.log.info("recording finished")
+        self.mic.close()
+
+        response = await self.resp.get()
+        return response

@@ -4,8 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import logging
 
+
 class Microphone:
-    def __init__(self, rate=16000, chunk_size=4096):
+    def __init__(self, rate=16000, chunk_size=512):
         self.rate = rate
         self.chunk_size = chunk_size
         self.p = pyaudio.PyAudio()
@@ -50,7 +51,7 @@ class Microphone:
 
         self.log.info(f"recording saved to {filename}")
         return filename
-    
+
     def record_to_bytes(self, duration_secs):
         frames = []
 
@@ -62,6 +63,14 @@ class Microphone:
         self.close()
 
         return b"".join(frames)
+
+    def record_yield(self, duration_secs):
+        self.log.info(f"recording for {duration_secs} seconds...")
+        for _ in range(0, int(self.rate / self.chunk_size * duration_secs)):
+            yield self.read()
+
+        self.log.info("recording finished")
+        self.close()
 
 
 def plot_waveform(filename):

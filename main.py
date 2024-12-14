@@ -15,9 +15,7 @@ async def main():
         import time
 
         a = time.time()
-        mic = micro.Microphone()
-        response = await model.send_audio(mic.record_to_bytes(3))
-
+        response = await model.record_audio(5)
         gen = await audio.AudTTS(response)
         print(time.time() - a)
         await audio.speakAudio(gen)
