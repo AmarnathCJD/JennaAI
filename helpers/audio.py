@@ -1,6 +1,7 @@
 from aiohttp import ClientSession, ClientTimeout
 import base64
 import logging
+import asyncio
 
 
 async def AudTTS(text: str):
@@ -30,6 +31,19 @@ async def AudTTS(text: str):
             except Exception as e:
                 logging.getLogger("aud").error(e)
                 return e
+
+
+async def speakAudio(bytes):
+    process = await asyncio.create_subprocess_shell(
+        "ffplay -nodisp -autoexit -",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    process.stdin.write(bytes)
+    await process.stdin.drain()
+    process.stdin.close()
+    await process.wait()
 
 
 def text_to_pragraph_chunks(text: str):

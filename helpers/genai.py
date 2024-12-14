@@ -1,6 +1,6 @@
 from google import genai
 from google.genai.types import ContentDict, PartDict
-from config import GEMINI_KEY
+from .config import GEMINI_KEY
 import asyncio
 import logging
 
@@ -43,7 +43,9 @@ class Model:
                         await session.send(request["text"], end_of_turn=True)
 
                     resp = ""
+                    print("receiving...")
                     async for message in session.receive():
+                        print(message)
                         resp += message.text if message.text else ""
                     await self.resp.put(resp)
         except Exception as e:
@@ -63,21 +65,3 @@ class Model:
         return response
 
 
-async def main():
-    model = Model()
-    await model.establish_connection()
-    f = open("output.pcm", "rb")
-    wav = f.read()
-    f.close()
-    # convert wav to pcm
-    pcm_data = wav[44:]
-
-    try:
-        response = await model.send_audio(wav)
-        print(response)
-    finally:
-        await model.queue.put(None)
-        await model.task
-
-
-asyncio.run(main())
