@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import logging
 
-
 class Microphone:
     def __init__(self, rate=16000, chunk_size=4096):
         self.rate = rate
@@ -27,26 +26,25 @@ class Microphone:
         self.stream.close()
         self.p.terminate()
 
+    def record_to_file(self, duration_secs, filename="output.wav"):
+        frames = []
 
-def record_to_file(duration_secs, filename="output.wav", rate=16000, chunk_size=4096):
-    mic = Microphone(rate=rate, chunk_size=chunk_size)
-    frames = []
+        self.log.info(f"recording for {duration_secs} seconds...")
+        for _ in range(0, int(self.rate / self.chunk_size * duration_secs)):
+            frames.append(self.read())
 
-    mic.log.info(f"recording for {duration_secs} seconds...")
-    for _ in range(0, int(rate / chunk_size * duration_secs)):
-        frames.append(mic.read())
+        self.log.info("recording finished")
+        self.close()
 
-    mic.close()
+        wf = wave.open(filename, "wb")
+        wf.setnchannels(1)
+        wf.setsampwidth(self.p.get_sample_size(pyaudio.paInt16))
+        wf.setframerate(self.rate)
+        wf.writeframes(b"".join(frames))
+        wf.close()
 
-    wf = wave.open(filename, "wb")
-    wf.setnchannels(1)
-    wf.setsampwidth(mic.p.get_sample_size(pyaudio.paInt16))
-    wf.setframerate(rate)
-    wf.writeframes(b"".join(frames))
-    wf.close()
-
-    mic.log.info(f"recording saved to {filename}")
-    return filename
+        self.log.info(f"recording saved to {filename}")
+        return filename
 
 
 def plot_waveform(filename):
@@ -55,9 +53,3 @@ def plot_waveform(filename):
     signal = np.frombuffer(signal, dtype=np.int16)
     plt.plot(signal)
     plt.show()
-
-
-duration = 5
-output_file = "output.wav"
-record_to_file(duration_secs=duration, filename=output_file)
-plot_waveform(output_file)
