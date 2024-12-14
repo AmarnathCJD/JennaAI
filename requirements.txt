@@ -2,3 +2,4 @@ google-genai
 pyaudio
 numpy
 matplotlib
+gtts
