@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import logging
 
+logging.basicConfig(level=logging.INFO)
+
 class Microphone:
     def __init__(self, rate=16000, chunk_size=4096):
         self.rate = rate
@@ -33,6 +35,11 @@ class Microphone:
         for _ in range(0, int(self.rate / self.chunk_size * duration_secs)):
             frames.append(self.read())
 
+        # save as raw pcm
+        with open(filename.replace(".wav", ".pcm"), "wb") as f:
+            for frame in frames:
+                f.write(frame)
+
         self.log.info("recording finished")
         self.close()
 
@@ -53,3 +60,6 @@ def plot_waveform(filename):
     signal = np.frombuffer(signal, dtype=np.int16)
     plt.plot(signal)
     plt.show()
+
+mic = Microphone()
+filename = mic.record_to_file(5)

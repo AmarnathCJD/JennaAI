@@ -34,7 +34,13 @@ class Model:
                     request = await self.queue.get()
                     if request is None:
                         break
-                    await session.send(request["text"], end_of_turn=True)
+                    if "audio" in request:
+                        await session.send(
+                            {"data": request["audio"], "mime_type": "audio/pcm"},
+                            end_of_turn=True,
+                        )
+                    else:
+                        await session.send(request["text"], end_of_turn=True)
 
                     resp = ""
                     async for message in session.receive():
@@ -51,13 +57,23 @@ class Model:
         response = await self.resp.get()
         return response
 
+    async def send_audio(self, audio: bytes):
+        await self.queue.put({"audio": audio})
+        response = await self.resp.get()
+        return response
+
 
 async def main():
     model = Model()
     await model.establish_connection()
+    f = open("output.pcm", "rb")
+    wav = f.read()
+    f.close()
+    # convert wav to pcm
+    pcm_data = wav[44:]
 
     try:
-        response = await model.send_message("whats your name?")
+        response = await model.send_audio(wav)
         print(response)
     finally:
         await model.queue.put(None)
